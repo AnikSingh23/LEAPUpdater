@@ -9,13 +9,13 @@ import re
 # Comment/uncomment the respective source folder line
 # Only uncomment one
 # source_folder = os.path.dirname(sys.executable)  # for PyInstaller
-source_folder = os.path.dirname(__file__)  # for PyCharm
-# source_folder = r'C:\Users\anik1\Desktop\Work\LEAP\Test Bed' # for a specific folder
+# source_folder = os.path.dirname(__file__)  # for PyCharm
+source_folder = r'C:\Users\anik1\Desktop\Work\LEAP\Test Bed' # for a specific folder
 
 
 
-
-folder_path = os.path.join(source_folder, "nrcan")
+folder_path = source_folder
+# folder_path = os.path.join(source_folder, "nrcan")
 
 # List files with names containing 2019
 files_2019 = glob.glob(os.path.join(folder_path, "*", "*2019*.*"))
