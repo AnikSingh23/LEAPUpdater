@@ -10,73 +10,64 @@ from Variables import source_folder
 # print(Examined_File)
 
 def checkvalues(filename, table):
-    Examined_File = source_folder + filename
+    try:
+        Examined_File = source_folder + filename
+        print(Examined_File)
 
-    # Read the file for the years column
-    dfcheck = pd.read_excel(Examined_File[1], sheet_name=table, skiprows=9, nrows=0)
-    # Turn column into a list
-    orig_year_list = dfcheck.columns.tolist()
-    # Create an alphabetical list the same size as the year list to show corresponding column letters
-    alphabetical_list = []
-    # This for loop will populate the alphabetical list with the letters if the number of columns surpass 26 (a-z) then this
-    # loop will add a preceding letter appropriately for example column 26 would be Z and 27 would be AA, column 52 would be
-    # AZ and column 53 would be BA
-    for i in range(len(orig_year_list)):
-        # Calculate the number of times the preceding character needs to be incremented
-        preceding_char_increments = i // 26
-        # Calculate the index of the current character in the alphabet (0-based)
-        char_index = i % 26
-        # Create the preceding characters by incrementing the character 'a' the number of times calculated
-        preceding_chars = ''.join([chr(97 + j) for j in range(preceding_char_increments)])
-        # Append the preceding characters and the current character to the result list
-        alphabetical_list.append(preceding_chars + chr(97 + char_index))
+        # Read the file for the years column
+        dfcheck = pd.read_excel(Examined_File[1], sheet_name=table, skiprows=9, nrows=0)
+        # Turn column into a list
+        orig_year_list = dfcheck.columns.tolist()
 
-    # Finds the min and max values of the columns excluding the first two (using 2:) since they are strings and are there
-    # for formatting the Excel table
-    print(orig_year_list)
-    orig_first_year = min(orig_year_list[2:])
-    orig_last_year = max(orig_year_list[2:])
+        # Create an alphabetical list the same size as the year list to show corresponding column letters
+        alphabetical_list = []
+        for i in range(len(orig_year_list)):
+            preceding_char_increments = i // 26
+            char_index = i % 26
+            preceding_chars = ''.join([chr(97 + j) for j in range(preceding_char_increments)])
+            alphabetical_list.append(preceding_chars + chr(97 + char_index))
 
-    # Finding the corresponding letter for the orig_first and orig_last year using the alphabetical list created earlier
-    orig_first_col = alphabetical_list[orig_year_list.index(orig_first_year)].upper()
-    orig_last_col = alphabetical_list[orig_year_list.index(orig_last_year)].upper()
+        # Finds the min and max values of the columns excluding the first two
+        print(orig_year_list)
+        orig_first_year = min(orig_year_list[2:])
+        orig_last_year = max(orig_year_list[2:])
 
-    print(orig_first_year, "   ", orig_first_col)
-    print(orig_last_year, "   ", orig_last_col)
+        # Find the corresponding letter for the orig_first and orig_last year
+        orig_first_col = alphabetical_list[orig_year_list.index(orig_first_year)].upper()
+        orig_last_col = alphabetical_list[orig_year_list.index(orig_last_year)].upper()
 
-    # Read the file for the years column
-    dfcheck = pd.read_excel(Examined_File[0], sheet_name="Table 1", skiprows=10, nrows=0)
-    # Turn column into a list
-    year_list = dfcheck.columns.tolist()
-    # Create an alphabetical list the same size as the year list to show corresponding column letters
-    alphabetical_list = []
-    # This for loop will populate the alphabetical list with the letters if the number of columns surpass 26 (a-z) then this
-    # loop will add a preceding letter appropriately for example column 26 would be Z and 27 would be AA, column 52 would be
-    # AZ and column 53 would be BA
-    for i in range(len(year_list)):
-        # Calculate the number of times the preceding character needs to be incremented
-        preceding_char_increments = i // 26
-        # Calculate the index of the current character in the alphabet (0-based)
-        char_index = i % 26
-        # Create the preceding characters by incrementing the character 'a' the number of times calculated
-        preceding_chars = ''.join([chr(97 + j) for j in range(preceding_char_increments)])
-        # Append the preceding characters and the current character to the result list
-        alphabetical_list.append(preceding_chars + chr(97 + char_index))
+        print(orig_first_year, "   ", orig_first_col)
+        print(orig_last_year, "   ", orig_last_col)
 
-    # Finds the min and max values of the columns excluding the first two (using 2:) since they are strings and are there
-    # for formatting the Excel table
-    print(year_list)
-    new_first_year = min(year_list[2:])
-    new_last_year = max(year_list[2:])
+        # Read the file for the years column
+        dfcheck = pd.read_excel(Examined_File[0], sheet_name="Table 1", skiprows=10, nrows=0)
+        year_list = dfcheck.columns.tolist()
 
-    # Finding the corresponding letter for the new_first and new_last year using the alphabetical list created earlier
-    new_first_col = alphabetical_list[year_list.index(new_first_year)].upper()
-    new_last_col = alphabetical_list[year_list.index(new_last_year)].upper()
+        # Create an alphabetical list for the year list
+        alphabetical_list = []
+        for i in range(len(year_list)):
+            preceding_char_increments = i // 26
+            char_index = i % 26
+            preceding_chars = ''.join([chr(97 + j) for j in range(preceding_char_increments)])
+            alphabetical_list.append(preceding_chars + chr(97 + char_index))
 
-    print(new_first_year, "   ", new_first_col)
-    print(new_last_year, "   ", new_last_col)
+        # Finds the min and max values of the columns excluding the first two
+        print(year_list)
+        new_first_year = min(year_list[2:])
+        new_last_year = max(year_list[2:])
 
-    orig_last_new_col = alphabetical_list[orig_year_list.index(new_first_year - 1)].upper()
-    print((new_first_year - 1), "   ", orig_last_new_col)
+        # Find the corresponding letter for the new_first and new_last year
+        new_first_col = alphabetical_list[year_list.index(new_first_year)].upper()
+        new_last_col = alphabetical_list[year_list.index(new_last_year)].upper()
 
-    return orig_first_col, orig_last_new_col, new_first_col, new_last_col, new_first_year
+        print(new_first_year, "   ", new_first_col)
+        print(new_last_year, "   ", new_last_col)
+
+        orig_last_new_col = alphabetical_list[orig_year_list.index(new_first_year - 1)].upper()
+        print((new_first_year - 1), "   ", orig_last_new_col)
+
+        return orig_first_col, orig_last_new_col, new_first_col, new_last_col, new_first_year
+
+    except Exception as e:
+        print(f"Error processing file '{filename}': {e}")
+        return None
