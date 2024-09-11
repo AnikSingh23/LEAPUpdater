@@ -1,16 +1,19 @@
 from numpy.lib.utils import source
+from pywin.Demos.app.customprint import PRINTDLGORD
 from win32com.client import Dispatch
 import re
 # from YearCode import orig_first_col, orig_last_new_col, new_first_col, new_last_col, new_first_year
 from YearCode import checkvalues
-from Variables import relative_paths_no_year_nrcan, source_folder, expression, relative_paths_sec
+from Variables import relative_paths_no_year_nrcan, source_folder, expression, relative_paths_sec, csv_filename
 import pandas as pd
 import os
+import string
 
 # from YearCode import last_col
 
 L = Dispatch('LEAP.LEAPApplication')
 p = L.Branch("\Key Assumptions")
+
 
 Prov = ["ab", "atl", "bc", "can", "mb", "nb", "nl", "ns", "on", "pe", "qc", "sk", "ter"]
 Sec = ["agr", "com", "ind", "res", "tra"]
@@ -24,6 +27,16 @@ for i in Prov:
 
 print(file_paths)
 
+# Create a function to turn column letters to numbers
+def excel_column_to_number(col_str):
+    """
+    Convert an Excel-style column (e.g., 'A', 'B', 'AA') to a 0-based index (0 for 'A', 1 for 'B', etc.).
+    """
+    col_str = col_str.upper()  # Ensure the input is uppercase to handle lowercase inputs
+    num = 0
+    for i, char in enumerate(reversed(col_str)):
+        num += (string.ascii_uppercase.index(char) + 1) * (26 ** i)
+    return num - 1  # Subtract 1 to convert to 0-based indexing
 
 # Create a function to extract expression information from a pattern
 def extract_parts(input_string):
@@ -51,19 +64,19 @@ def extract_parts(input_string):
 
 # This function will check a branch has children or key assumptions. If it finds another category it will put the new category back into the same function and recursively go through the categories.
 # If it finds a key assumption it will pass that assumption to the next function which updates the expression.
-def update_branch(branch, OrigFile):
+def update_branch(branch, OrigFile, csv_filename, first_write):
     for child in branch.Children:
         # If branch is another branch go a step deeper
         if child.BranchType == 9:
             print("category", "  ", child.Name)
-            update_branch(child, OrigFile)
+            update_branch(child, OrigFile, csv_filename, first_write)
         # If branch contains an expression modify the expression
         elif child.BranchType == 10:
             print("Key assumption", child.Name)
             if expression:
                 update_expression_with_exp(child, OrigFile)
             if not expression:
-                update_expression_with_value(child, OrigFile)
+                first_write = update_expression_with_value(child, OrigFile, csv_filename, first_write)
 
         # Else print an error message
         else:
@@ -145,8 +158,9 @@ def update_expression_with_exp(branch, OrigFile):
         else:
             # If filename is in the list of possible filenames, then adjust the equation
             if filename in OrigFile and relative_paths_sec:
+                print(filename)
                 checked = checkvalues(filename, table)
-                orig_first_col, orig_last_new_col, new_first_col, new_last_col, new_first_year = checked
+                orig_first_col, orig_last_new_col = checked
 
                 print(filename, ",", table, "!", ex_first_col, ex_row1, ":", ex_last_col, ex_row1, ", ", table, "!", ex_first_col, ex_row2, ":", ex_last_col, ex_row2, sep='')
 
@@ -158,9 +172,10 @@ def update_expression_with_exp(branch, OrigFile):
     print(branch.Name, "  ", vari.Expression)
 
 
-def update_expression_with_value(branch, OrigFile):
+def update_expression_with_value(branch, OrigFile, csv_filename, first_write):
     vari = branch.Variables("Key Assumption")
     print(branch.Name, "  ", vari.Expression)
+    name = vari.Expression
 
     # Utilize function to strip the expression into parts
     extracted_values = extract_parts(vari.Expression)
@@ -172,33 +187,70 @@ def update_expression_with_value(branch, OrigFile):
         print(f"Filename: {filename}, Table: {table}")
 
         # Check if filename matches
-        if filename in OrigFile or relative_paths_no_year_nrcan:
+        if filename in OrigFile and relative_paths_sec:
             # Read the Excel file to get the values
             print(source_folder)
             print(filename)
             absolute_filename = source_folder + "\\" + filename
             df = pd.read_excel(absolute_filename, sheet_name=table)
 
+            checked = checkvalues(filename, table)
+            orig_first_col, orig_last_col = checked
+
+            print(ex_row1)
+            print("----")
+            print(ex_first_col)
+            print(orig_last_col)
+
+            ex_first_col_num = excel_column_to_number(ex_first_col)
+            ex_last_col_num = excel_column_to_number(orig_last_col) + 1
+
+            print(ex_first_col_num)
+            print(ex_last_col_num)
+            print("---")
+
+            # Make sure ex_row1 is an integer (if it's coming as a string, convert it) Also minus 2 from the rows as that seems neccesary
+            ex_row1 = int(ex_row1) - 2  # Convert row index to an integer
+            ex_row2 = int(ex_row2) - 2  # Convert row index to an integer (if necessary)
+
             # Extract rows: row1 contains the years, row2 contains the corresponding values
             # Adjust for 0-indexing in pandas (Excel uses 1-indexing, so subtract 1 from the row numbers)
-            years = df.iloc[ex_row1 - 1, ex_first_col:ex_last_col + 1].tolist()
-            values = df.iloc[ex_row2 - 1, ex_first_col:ex_last_col + 1].tolist()
+            years = df.iloc[ex_row1, ex_first_col_num:ex_last_col_num].values.tolist()  # Use .values.tolist() for a Series
+            values = df.iloc[ex_row2, ex_first_col_num:ex_last_col_num].values.tolist()  # Similarly for the second row
 
             print(f"Years: {years}")
             print(f"Values: {values}")
 
             # Construct the 'interp' expression using the extracted years and values
-            interp_parts = [f"interp({years[i]}, {values[i]})" for i in range(len(years))]
-            interp_expression = ", ".join(interp_parts)
+            interp_parts = [f"{years[i]}, {values[i]}" for i in range(len(years))]  # Alternate between years and values
+            interp_expression = "interp(" + ", ".join(interp_parts) + ")"
 
             # Update the expression in the 'vari' variable
             vari.Expression = interp_expression
 
+            # Now we handle the CSV writing part
+            # Prepare the row to be written
+            row_to_write = [f"{branch.Name}, {filename}"] + values
+
+            # Check if this is the first write to the CSV file
+            if first_write:
+                # Write the years row and then the first data row
+                header = ["Years"] + years
+                df_to_write = pd.DataFrame([header, row_to_write])
+                df_to_write.to_csv(csv_filename, mode='w', index=False, header=False)  # Write header and the first row
+                first_write = False  # After first write, set this to False
+            else:
+                # Append the new row without the header
+                df_to_write = pd.DataFrame([row_to_write])
+                df_to_write.to_csv(csv_filename, mode='a', index=False, header=False)  # Append without header
+
     print(branch.Name, "  ", vari.Expression)
+    return first_write  # Return updated value of first_write
 
 
 # 6 sub categories
 
 print()
 
-update_branch(p, file_paths)
+first_write = True
+update_branch(p, file_paths, csv_filename, first_write)
