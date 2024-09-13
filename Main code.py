@@ -15,7 +15,7 @@ from pathlib import Path
 L = Dispatch('LEAP.LEAPApplication')
 p = L.Branch("\Key Assumptions")
 
-Prov = ["ab", "atl", "bc", "can", "mb", "nb", "nl", "ns", "on", "pe", "qc", "sk", "ter"]
+Prov = ["ab", "atl", "bc", "bct", "can", "mb", "nb", "nl", "ns", "on", "pe", "qc", "sk", "ter"]
 Sec = ["agr", "com", "ind", "res", "tra"]
 file_paths = []
 # Nested for loop to sort through regions
@@ -89,7 +89,7 @@ def extract_parts_data(input_string):
 
 
 # This function will check a branch has children or key assumptions. If it finds another category it will put the new category back into the same function and recursively go through the categories.
-# If it finds a key assumption it will pass that assumption to the next function which updates the expression.
+# If it finds a key assumption it will pass that assumption to the next function which updates the expression. 9 = Branch 10 = Expression
 def update_branch(branch, OrigFile, csv_filename, total_csv_filename, first_write, first_write_total):
     for child in branch.Children:
         # If branch is another branch go a step deeper
@@ -237,7 +237,7 @@ def update_expression_with_value(branch, OrigFile, csv_filename, total_csv_filen
                     df_to_write.to_csv(csv_filename, mode='a', index=False, header=False)
 
                 # Write data to Energy_total_csv_filename
-                if "total" in branch.Name.lower() or "end use" in branch.Name.lower():
+                if "total" in branch.Name.lower() or "end use" in branch.Name.lower() or "aggregate" in branch.Name.lower():
                     if first_write_total:
                         header = ["Years"] + years
                         df_to_write_total = pd.DataFrame([header, row_to_write])
