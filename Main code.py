@@ -4,7 +4,7 @@ from win32com.client import Dispatch
 import re
 # from YearCode import orig_first_col, orig_last_new_col, new_first_col, new_last_col, new_first_year
 from YearCode import checkvalues
-from Variables import relative_paths_no_year_nrcan, source_folder, expression, relative_paths_sec, entire_csv_filename, Energy_total_csv_filename
+from Variables import relative_paths_no_year_nrcan, source_folder, expression, relative_paths_sec, entire_csv_filename, Energy_total_csv_filename, use_high
 import pandas as pd
 import os
 import string
@@ -102,8 +102,8 @@ def update_branch(branch, OrigFile, csv_filename, total_csv_filename, first_writ
         elif child.BranchType == 10:
             print("Key assumption", child.Name)
             if expression:
-                update_expression_with_exp(child, OrigFile)
-            if not expression:
+                first_write, first_write_total = update_expression_with_exp(child, OrigFile, csv_filename, total_csv_filename, first_write, first_write_total)
+            else:
                 # Ensure updated values are returned and passed on
                 first_write, first_write_total = update_expression_with_value(child, OrigFile, csv_filename, total_csv_filename, first_write, first_write_total)
 
@@ -115,8 +115,7 @@ def update_branch(branch, OrigFile, csv_filename, total_csv_filename, first_writ
     return first_write, first_write_total
 
 
-
-def update_expression_with_exp(branch, OrigFile):
+def update_expression_with_exp(branch, OrigFile, csv_filename, total_csv_filename, first_write, first_write_total, use_zz=False):
     vari = branch.Variables("Key Assumption")
     print(branch.Name, "  ", vari.Expression)
 
@@ -124,29 +123,90 @@ def update_expression_with_exp(branch, OrigFile):
     extracted_values = extract_parts_interp(vari.Expression)
     if not extracted_values:
         extracted_values = extract_parts_data(vari.Expression)
+
+    # Check if extracted_values is empty or None
+    if not extracted_values:
+        print(f"Failed to extract values for expression: {vari.Expression}")
+        return first_write, first_write_total  # Exit if extraction fails
+
     print(extracted_values)
 
-    # If information can be extracted change the expression if not leave the expression as is.
-    if extracted_values:
-        filename, table, ex_first_col, ex_row1, ex_last_col, ex_row2 = extracted_values
+    # Extract relevant details from the expression
+    filename, table, ex_first_col, ex_row1, ex_last_col, ex_row2 = extracted_values
 
-        # Check if the table is in the "Table #" or "Table ##" format
-        if not re.match(r"^Table \d{1,2}$", table):
-            print(f"Skipping update for table {table}, as it doesn't match 'Table #' or 'Table ##' format.")
-        else:
-            # If filename is in the list of possible filenames, then adjust the equation
-            if filename in OrigFile and relative_paths_sec:
-                checked = checkvalues(filename, table)
-                orig_first_col, orig_last_new_col = checked
+    # Check if the table is in the "Table #" or "Table ##" format
+    if not re.match(r"^Table \d{1,2}$", table):
+        print(f"Skipping update for table {table}, as it doesn't match 'Table #' or 'Table ##' format.")
+    else:
+        # Normalize filename
+        normalized_filename = Path(filename).as_posix().lower()
 
-                print(filename, ",", table, "!", ex_first_col, ex_row1, ":", ex_last_col, ex_row1, ", ", table, "!", ex_first_col, ex_row2, ":", ex_last_col, ex_row2, sep='')
+        # Check if normalized filename is in the normalized relative_paths_sec
+        if any(normalized_filename == Path(path).as_posix().lower() for path in relative_paths_sec):
+            # Read the Excel file to get the values
+            absolute_filename = source_folder + "\\" + filename
+            df = pd.read_excel(absolute_filename, sheet_name=table)
 
-                # Create first expression from original values
-                exp = "Interp({},{}!{}{}:{}{},{}!{}{}:{}{})".format(filename, table, orig_first_col, ex_row1, orig_last_new_col, ex_row1, table, orig_first_col, ex_row2, orig_last_new_col, ex_row2)
+            checked = checkvalues(filename, table)
+            orig_first_col, orig_last_col = checked
 
-                vari.Expression = exp
+            # Set column to 'ZZ' if use_zz is True, otherwise use the original first and last columns
+            if use_high:
+                ex_first_col = orig_first_col
+                ex_last_col = 'ZZ'
+            else:
+                ex_first_col = orig_first_col
+                ex_last_col = orig_last_col
+
+            ex_first_col_num = excel_column_to_number(ex_first_col)
+            ex_last_col_num = excel_column_to_number(ex_last_col) + 1
+
+            # Make sure ex_row1 is an integer (if it's coming as a string, convert it) Also minus 2 from the rows as that seems necessary
+            ex_row1 = int(ex_row1) - 2  # Convert row index to an integer
+            ex_row2 = int(ex_row2) - 2  # Convert row index to an integer (if necessary)
+
+            # Extract rows: row1 contains the years, row2 contains the corresponding values
+            years = df.iloc[ex_row1, ex_first_col_num:ex_last_col_num].values.tolist()  # Use .values.tolist() for a Series
+            values = df.iloc[ex_row2, ex_first_col_num:ex_last_col_num].values.tolist()  # Similarly for the second row
+
+            # Construct the original style expression using the extracted parts
+            exp = f"Interp({filename},{table}!{ex_first_col}{ex_row1 + 2}:{ex_last_col}{ex_row1 + 2},{table}!{ex_first_col}{ex_row2 + 2}:{ex_last_col}{ex_row2 + 2})"
+
+            # Update the expression in the 'vari' variable
+            vari.Expression = exp
+
+            # Prepare the row to be written
+            row_to_write = [f"{branch.Name},{table},{filename}"] + values
+            print(first_write)
+            print(first_write_total)
+
+            # Now we handle the CSV writing part
+            if first_write:
+                # Write header only for the first time
+                header = ["Years"] + years
+                df_to_write = pd.DataFrame([header, row_to_write])
+                df_to_write.to_csv(csv_filename, mode='w', index=False, header=False)
+                first_write = False  # Set to False after first write
+            else:
+                # Append data in subsequent writes
+                print("writing to csv")
+                df_to_write = pd.DataFrame([row_to_write])
+                df_to_write.to_csv(csv_filename, mode='a', index=False, header=False)
+
+            # Write data to Energy_total_csv_filename
+            if "total" in branch.Name.lower() or "end use" in branch.Name.lower() or "aggregate" in branch.Name.lower():
+                if first_write_total:
+                    header = ["Years"] + years
+                    df_to_write_total = pd.DataFrame([header, row_to_write])
+                    df_to_write_total.to_csv(total_csv_filename, mode='w', index=False, header=False)
+                    first_write_total = False  # Set to False after first write
+                else:
+                    print("writing to energy csv")
+                    df_to_write_total = pd.DataFrame([row_to_write])
+                    df_to_write_total.to_csv(total_csv_filename, mode='a', index=False, header=False)
 
     print(branch.Name, "  ", vari.Expression)
+    return first_write, first_write_total  # Return updated value of first_write
 
 
 def update_expression_with_value(branch, OrigFile, csv_filename, total_csv_filename, first_write, first_write_total):

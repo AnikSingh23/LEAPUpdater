@@ -10,8 +10,9 @@ import re
 # Only uncomment one
 # source_folder = os.path.dirname(sys.executable)  # for PyInstaller
 # source_folder = os.path.dirname(__file__)  # for PyCharm
-source_folder = r'C:\Users\anik1\Desktop\Work\LEAP\leap-canada all scenarios_sperry et al._2023-03-16 - Copy' # for a specific folder
-expression = False
+source_folder = r'C:\Users\anik1\Desktop\Work\LEAP\Test Bed' # for a specific folder
+expression = True
+use_high = True
 entire_csv_filename = "Entire variables.csv"
 Energy_total_csv_filename = "Energy Total.csv"
 
