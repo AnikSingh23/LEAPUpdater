@@ -11,8 +11,8 @@ import re
 # source_folder = os.path.dirname(sys.executable)  # for PyInstaller
 # source_folder = os.path.dirname(__file__)  # for PyCharm
 source_folder = r'C:\Users\anik1\Desktop\Work\LEAP\Test Bed' # for a specific folder
-expression = True
-use_high = True
+expression = True  #True for expressions and False for direct values.
+use_high = False # True for end column being ZZ and False for end column being Dynamic
 entire_csv_filename = "Entire variables.csv"
 Energy_total_csv_filename = "Energy Total.csv"
 
