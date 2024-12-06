@@ -176,7 +176,7 @@ def update_expression_with_exp(branch, OrigFile, csv_filename, total_csv_filenam
             vari.Expression = exp
 
             # Prepare the row to be written
-            row_to_write = [f"{branch.Name}, {branch.Path},{table},{filename}"] + values
+            row_to_write = [f"{branch.Name}, {table},{filename}"] + values
             print(first_write)
             print(first_write_total)
 
@@ -279,7 +279,7 @@ def update_expression_with_value(branch, OrigFile, csv_filename, total_csv_filen
                 vari.Expression = interp_expression
 
                 # Prepare the row to be written
-                row_to_write = [f"{branch.Name}, {branch.Path},{table},{filename}"] + values
+                row_to_write = [f"{branch.Name}, {table},{filename}"] + values
                 print(first_write)
                 print(first_write_total)
 
@@ -303,7 +303,7 @@ def update_expression_with_value(branch, OrigFile, csv_filename, total_csv_filen
                         df_to_write_total = pd.DataFrame([header, row_to_write])
                         df_to_write_total.to_csv(total_csv_filename, mode='w', index=False, header=False)
                         first_write_total = False  # Set to False after first write
-                    else:*
+                    else:
                         print("writing to energy csv")
                         df_to_write_total = pd.DataFrame([row_to_write])
                         df_to_write_total.to_csv(total_csv_filename, mode='a', index=False, header=False)
